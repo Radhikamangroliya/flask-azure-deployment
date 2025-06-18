@@ -1,0 +1,74 @@
+name: Terraform Deploy to Azure
+
+on:
+  push:
+    branches:
+      - HW3  # Ensure you push to this branch to trigger the workflow
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.5  # ✅ Use a stable version
+
+      # Step 3: Change Directory to Terraform
+      - name: Change Directory to Terraform
+        run: cd terraform && ls -la  # ✅ Debug to check Terraform files exist
+
+      # Step 4: Initialize Terraform
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform  # ✅ Ensure Terraform runs inside 'terraform' directory
+
+      # Step 5: Terraform Plan (optional but recommended)
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: terraform
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Step 6: Apply Terraform Configuration
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: terraform  # ✅ Runs inside 'terraform' directory
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Step 7: Install Azure CLI
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+      # Step 8: Azure Login using Service Principal
+      - name: Azure Login
+        run: |
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} \
+            -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      # Step 9: Deploy Flask App to Azure
+      - name: Deploy Flask App to Azure
+        run: |
+          az webapp up --name flask-web-app-radhika1 \
+            --resource-group flask-resource-group \
+            --runtime PYTHON:3.12 --location centralus
+        working-directory: app  # ✅ Runs inside the 'app' directory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
